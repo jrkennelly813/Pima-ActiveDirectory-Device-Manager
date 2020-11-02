@@ -82,39 +82,17 @@ Function BuildTreeView {
     $OUs = GetNextLevel $treeNodes $strDomainDN
         
     $treeNodes.Expand() 
-}
-Function GenerateTree {
-
-}     
-Function Prompt {
-    $Prompt = New-Object System.Windows.Forms.Form
-    $Prompt.StartPosition = 'CenterScreen'
-    $Prompt.ClientSize = '220,100'
-    $Prompt.BackColor = "#393b3b"
-    $Prompt.ForeColor = "#5486d1"
-
-    #$PimaIcon = New-Object System.Drawing.Icon ('.\favicon.ico')
-    #$Form.Icon = $PimaIcon
-
-    $PromptLabel = New-Object System.Windows.Forms.Label
-    $PromptLabel.Font = 'Microsoft Sans Serif,style=Bold'
-    $PromptLabel.Text = "Delete This Asset?"
-    $PromptLabel.AutoSize = $True
-    $PromptLabel.Location = New-Object System.Drawing.Point(50, 20)
-
-    $YesButton = New-Object System.Windows.Forms.Button
-    $YesButton.Text = 'Yes'
-    $YesButton.Location = New-Object System.Drawing.Point(20, 65)
-    $YesButton.Size = New-Object System.Drawing.Size(75, 23)
-
-    $NoButton = New-Object System.Windows.Forms.Button
-    $NoButton.Text = 'No'
-    $NoButton.Location = New-Object System.Drawing.Point(120, 65)
-    $NoButton.Size = New-Object System.Drawing.Size(75, 23)
-    $NoButton.DialogResult = [System.Windows.Forms.DialogResult]::Cancel
-
-    $Prompt.Controls.AddRange(@($PromptLabel, $YesButton, $NoButton))
-
+}   
+Function Prompt ($Asset) {
+    $MsgBox = [System.Windows.Forms.MessageBox]::Show("Are you sure you would like to delete $Asset?",'Warning','YesNo')
+    Switch ($MsgBox) {
+    'Yes' {
+        #DelComp -CompName $InfoLabel.Text
+    }
+    'No' {
+        #$MsgBox.close()
+    }
+    }
 }
 #EndRegion
 #Region UI
@@ -240,14 +218,12 @@ $MovButton.Add_Click( {
 
 $DelButton.Add_Click( {
 
-        Prompt
-
-        $StatusBar.Text = "Deleting Computer.."
-        Start-Sleep -s 1
-        #DelComp -CompName $InfoLabel.Text
-        $StatusBar.Text = "Done.."
-        Start-Sleep -s 1
-        $StatusBar.Text = ''
+        Prompt -Asset $Asset
+        #$StatusBar.Text = "Deleting Computer.."
+        #Start-Sleep -s 1
+        #$StatusBar.Text = "Done.."
+        #Start-Sleep -s 1
+        #$StatusBar.Text = ''
     })
 
 $CloseButton.Add_Click( {
@@ -255,7 +231,6 @@ $CloseButton.Add_Click( {
         Start-Sleep -s 1 
     })
 #endregion
-
 
 
 [void]$Form.ShowDialog()
