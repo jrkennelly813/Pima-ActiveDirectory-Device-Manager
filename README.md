@@ -9,5 +9,6 @@ delete the device from Active Directory or move the device to a different Organi
 </p>
 
 ## To do:
-* Show Active Directory tree in an easier to parse manner.
+* Active Directory tree has been parsed cleaner- Need to fix long load time.
 * General code cleanup.
+* Fix Delete AD Computer Functionality
