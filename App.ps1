@@ -1,10 +1,9 @@
 Import-Module ActiveDirectory
+
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 
-$objIPProperties = [System.Net.NetworkInformation.IPGlobalProperties]::GetIPGlobalProperties()
-$strDNSDomain = $objIPProperties.DomainName.toLower()
-$strDomainDN = $strDNSDomain.toString().split('.'); foreach ($strVal in $strDomainDN) { $strTemp += "dc=$strVal," }; $strDomainDN = $strTemp.TrimEnd(",").toLower()
+
 #Region Functions
 Function SearchAD ($Asset) {
     if ($Asset -Match "^\d{6}$") {
@@ -26,24 +25,38 @@ Function SearchAD ($Asset) {
 Function DelComp($CompName) {
     Remove-ADComputer -Name $CompName 
 }
-Function AddNode ($SelectedNode, $Name) { 
-    $NewNode = new-object System.Windows.Forms.TreeNode  
-    $NewNode.Name = $name 
-    $NewNode.Text = $name 
-    [void] $SelectedNode.Nodes.Add($NewNode)
-    return $NewNode 
-}
-Function GetNextLevel ($selectedNode, $dn) {
-
-    $OUs = Get-ADObject -Filter 'ObjectClass -eq "organizationalUnit"' -SearchScope OneLevel -SearchBase $dn
-
+Function AddNode { 
+    param ( 
+        $selectedNode, 
+        $name,
+        $tag
+    ) 
+    $newNode = new-object System.Windows.Forms.TreeNode  
+    $newNode.Name = $name 
+    $newNode.Text = $name
+    $newNode.Tag = $tag
+    $selectedNode.Nodes.Add($newNode) | out-Null 
+    return $newNode 
+} 
+Function GetNextLevel {
+    param (
+        $selectedNode,
+        $dn
+    )
+    
+    #$ous = Get-ADorganizationalUnit -Filter * -SearchBase $dn
+    $oUs = Get-ADobject -Filter 'objectClass -eq "organizationalUnit" -or objectClass -eq "container"' -SearchScope oneLevel -SearchBase $dn
+    $s = $dn | out-String
+    $ss = $s.split(",")
+    $sp = $ss[0].replace("OU=", "").Trim()
     If ($null -eq $OUs) {
-        $Node = AddNode $SelectedNode $dn
+        $node = AddNode $selectedNode $sp $dn
+    
     }
     Else {
-        $Node = AddNode $SelectedNode $dn
+        $node = AddNode $selectedNode $sp $dn
         
-        $OUs | ForEach-Object {
+        $oUs | ForEach-Object {
             GetNextLevel $node $_.distinguishedName
         }
     }
@@ -53,49 +66,54 @@ Function BuildTreeView {
         $ADTree.Nodes.remove($treeNodes) 
         $Form.Refresh() 
     } 
-    
-    $TreeNodes = New-Object System.Windows.Forms.TreeNode 
-    $TreeNodes.text = "PCC-Domain" 
-    $TreeNodes.Name = "PCC-Domain" 
-    $TreeNodes.Tag = "root" 
-    [void] $ADTree.Nodes.Add($TreeNodes)  
-     
+        
+    $treeNodes = New-object System.Windows.Forms.TreeNode 
+    $treeNodes.text = "Active Directory Hierarchy" 
+    $treeNodes.Name = "Active Directory Hierarchy" 
+    $treeNodes.Tag = "root" 
+    $ADTree.Nodes.Add($treeNodes) | out-Null 
+         
     $ADTree.add_AfterSelect( { 
             $SelectBox.Text = $this.SelectedNode.Name
+            $script:Dept = $this.SelectedNode.Tag
         }) 
-     
-    GetNextLevel $treeNodes $strDomainDN
-    
-    $TreeNodes.Expand() 
+         
+    #Generate Module nodes 
+    $OUs = GetNextLevel $treeNodes $strDomainDN
+        
+    $treeNodes.Expand() 
 }
+Function GenerateTree {
+
+}     
 Function Prompt {
-        $Prompt = New-Object System.Windows.Forms.Form
-        $Prompt.StartPosition = 'CenterScreen'
-        $Prompt.ClientSize = '220,100'
-        $Prompt.BackColor = "#393b3b"
-        $Prompt.ForeColor = "#5486d1"
+    $Prompt = New-Object System.Windows.Forms.Form
+    $Prompt.StartPosition = 'CenterScreen'
+    $Prompt.ClientSize = '220,100'
+    $Prompt.BackColor = "#393b3b"
+    $Prompt.ForeColor = "#5486d1"
 
-        #$PimaIcon = New-Object System.Drawing.Icon ('.\favicon.ico')
-        #$Form.Icon = $PimaIcon
+    #$PimaIcon = New-Object System.Drawing.Icon ('.\favicon.ico')
+    #$Form.Icon = $PimaIcon
 
-        $PromptLabel = New-Object System.Windows.Forms.Label
-        $PromptLabel.Font = 'Microsoft Sans Serif,style=Bold'
-        $PromptLabel.Text = "Delete This Asset?"
-        $PromptLabel.AutoSize = $True
-        $PromptLabel.Location = New-Object System.Drawing.Point(50, 20)
+    $PromptLabel = New-Object System.Windows.Forms.Label
+    $PromptLabel.Font = 'Microsoft Sans Serif,style=Bold'
+    $PromptLabel.Text = "Delete This Asset?"
+    $PromptLabel.AutoSize = $True
+    $PromptLabel.Location = New-Object System.Drawing.Point(50, 20)
 
-        $YesButton = New-Object System.Windows.Forms.Button
-        $YesButton.Text = 'Yes'
-        $YesButton.Location = New-Object System.Drawing.Point(20, 65)
-        $YesButton.Size = New-Object System.Drawing.Size(75, 23)
+    $YesButton = New-Object System.Windows.Forms.Button
+    $YesButton.Text = 'Yes'
+    $YesButton.Location = New-Object System.Drawing.Point(20, 65)
+    $YesButton.Size = New-Object System.Drawing.Size(75, 23)
 
-        $NoButton = New-Object System.Windows.Forms.Button
-        $NoButton.Text = 'No'
-        $NoButton.Location = New-Object System.Drawing.Point(120, 65)
-        $NoButton.Size = New-Object System.Drawing.Size(75, 23)
-        $NoButton.DialogResult = [System.Windows.Forms.DialogResult]::Cancel
+    $NoButton = New-Object System.Windows.Forms.Button
+    $NoButton.Text = 'No'
+    $NoButton.Location = New-Object System.Drawing.Point(120, 65)
+    $NoButton.Size = New-Object System.Drawing.Size(75, 23)
+    $NoButton.DialogResult = [System.Windows.Forms.DialogResult]::Cancel
 
-        $Prompt.Controls.AddRange(@($PromptLabel, $YesButton, $NoButton))
+    $Prompt.Controls.AddRange(@($PromptLabel, $YesButton, $NoButton))
 
 }
 #EndRegion
@@ -171,6 +189,8 @@ $ADTree.Visible = $False
 $ADTree.Size = New-Object System.Drawing.Size(275, 250)
 $ADTree.Location = New-Object System.Drawing.Size(300, 60)
 $ADTree.Scrollable = $True
+$ADTree.DataBindings.DefaultDataSourceUpdateMode = 0
+$ADTree.TabIndex = 0
 $ADTree.BackColor = "#737880"
 $ADTree.ForeColor = "#080a1a"
 
@@ -211,6 +231,10 @@ $MovButton.Add_Click( {
         $ADLabel.Visible = $True
         $ADTree.Visible = $True
         $SelectBox.Visible = $True
+
+        $objIPProperties = [System.Net.NetworkInformation.IPGlobalProperties]::GetIPGlobalProperties()
+        $strDNSDomain = $objIPProperties.DomainName.toLower()
+        $strDomainDN = $strDNSDomain.toString().split('.'); foreach ($strVal in $strDomainDN) { $strTemp += "dc=$strVal," }; $strDomainDN = $strTemp.TrimEnd(",").toLower()
         BuildTreeView
     })
 
