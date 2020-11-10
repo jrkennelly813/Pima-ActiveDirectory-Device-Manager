@@ -25,75 +25,60 @@ Function SearchAD ($Asset) {
 Function DelComp($CompName) {
     Remove-ADComputer -Name $CompName 
 }
-Function AddNode { 
-    param ( 
-        $selectedNode, 
-        $name,
-        $tag
-    ) 
+Function AddNode ($selectedNode, $Name, $DN) { 
     $newNode = new-object System.Windows.Forms.TreeNode  
-    $newNode.Name = $name 
-    $newNode.Text = $name
-    $newNode.Tag = $tag
-    $selectedNode.Nodes.Add($newNode) | out-Null 
+    $newNode.Name = $name.name 
+    $newNode.Text = $name.name
+    $newNode.Tag = $DN.DistinguishedName.toString()
+    $SelectedNode.Nodes.Add($newNode) | out-Null 
     return $newNode 
 } 
-Function GetNextLevel {
-    param (
-        $selectedNode,
-        $dn
-    )
+Function GetNextLevel ($Node, $DN) {
+
+    $OUs = Get-ADOrganizationalUnit -Filter * -SearchScope OneLevel -SearchBase $DN
     
-    #$ous = Get-ADorganizationalUnit -Filter * -SearchBase $dn
-    $oUs = Get-ADobject -Filter 'objectClass -eq "organizationalUnit" -or objectClass -eq "container"' -SearchScope oneLevel -SearchBase $dn
-    $s = $dn | out-String
-    $ss = $s.split(",")
-    $sp = $ss[0].replace("OU=", "").Trim()
-    If ($null -eq $OUs) {
-        $node = AddNode $selectedNode $sp $dn
-    
-    }
-    Else {
-        $node = AddNode $selectedNode $sp $dn
-        
-        $oUs | ForEach-Object {
-            GetNextLevel $node $_.distinguishedName
+    If ($Null -ne $OUs) { 
+        ForEach ($_ in $OUs) {
+            AddNode -SelectedNode $Node -Name $_ -DN $_
         }
-    }
+    }  
 }
 Function BuildTreeView { 
-    if ($treeNodes) {  
-        $ADTree.Nodes.remove($treeNodes) 
-        $Form.Refresh() 
-    } 
-        
-    $treeNodes = New-object System.Windows.Forms.TreeNode 
-    $treeNodes.text = "Active Directory Hierarchy" 
-    $treeNodes.Name = "Active Directory Hierarchy" 
-    $treeNodes.Tag = "root" 
-    $ADTree.Nodes.Add($treeNodes) | out-Null 
-         
-    $ADTree.add_AfterSelect( { 
-            $SelectBox.Text = $this.SelectedNode.Name
-            $script:Dept = $this.SelectedNode.Tag
-        }) 
-         
-    #Generate Module nodes 
-    $OUs = GetNextLevel $treeNodes $strDomainDN
+ 
+    $TreeNode = New-object System.Windows.Forms.TreeNode 
+    $TreeNode.text = "Active Directory Hierarchy" 
+    $TreeNode.Name = "Active Directory Hierarchy" 
+    $TreeNode.Tag = "root" 
+    [void] $ADTree.Nodes.Add($TreeNode)
+    
+    $root = "OU=PCC,DC=PCC-Domain,DC=pima,DC=edu"
+    $OUs = Get-ADOrganizationalUnit -Filter * -SearchScope OneLevel -SearchBase $root
+    
+    ForEach ($_ in $OUs) {
+        $NewNode = AddNode -SelectedNode $TreeNode -Name $_ -DN $_
+        GetNextLevel -Node $NewNode -DN $NewNode.Tag
+    }
+
+    #ForEach ($_ in TreeNode.Nodes) {
+    #    $NewNode = AddNode -SelectedNode $TreeNode -Name $_ -DN $_
+    #}
+    
+    
+    
         
     $treeNodes.Expand() 
 }   
-Function Prompt ($Asset) {
-    $MsgBox = [System.Windows.Forms.MessageBox]::Show("Are you sure you would like to delete $Asset?",'Warning','YesNo')
-    Switch ($MsgBox) {
-    'Yes' {
+#Function Prompt ($Asset) {
+#    $MsgBox = [System.Windows.Forms.MessageBox]::Show("Are you sure you would like to delete $Asset?",'Warning','YesNo')
+#    Switch ($MsgBox) {
+#    'Yes' {
         #DelComp -CompName $InfoLabel.Text
-    }
-    'No' {
+#    }
+#    'No' {
         #$MsgBox.close()
-    }
-    }
-}
+#    }
+#    }
+#}
 #EndRegion
 #Region UI
 $Form = New-Object System.Windows.Forms.Form
@@ -158,12 +143,10 @@ $DelButton.Visible = $False
 $ADLabel = New-Object System.Windows.Forms.Label
 $ADLabel.Text = "Active Directory Tree"
 $ADLabel.Location = New-Object System.Drawing.Point(365, 20)
-$ADLabel.Visible = $False
 $ADLabel.AutoSize = $True
 $ADLabel.Font = 'Microsoft Sans Serif,10,style=Bold'
 
 $ADTree = New-Object System.Windows.Forms.TreeView
-$ADTree.Visible = $False
 $ADTree.Size = New-Object System.Drawing.Size(275, 250)
 $ADTree.Location = New-Object System.Drawing.Size(300, 60)
 $ADTree.Scrollable = $True
@@ -177,7 +160,6 @@ $SelectBox.Location = New-Object System.Drawing.Point(300, 315)
 $SelectBox.BackColor = "#737880"
 $SelectBox.ForeColor = "#080a1a"
 $SelectBox.Size = New-Object System.Drawing.Point(275, 10)
-$SelectBox.Visible = $False
 
 $OKButton = New-Object System.Windows.Forms.Button
 $OKButton.Text = 'OK'
@@ -206,13 +188,6 @@ $FindButton.Add_Click( {
 
 $MovButton.Add_Click( {
         $StatusBar.Text = "Select an OU.."
-        $ADLabel.Visible = $True
-        $ADTree.Visible = $True
-        $SelectBox.Visible = $True
-
-        $objIPProperties = [System.Net.NetworkInformation.IPGlobalProperties]::GetIPGlobalProperties()
-        $strDNSDomain = $objIPProperties.DomainName.toLower()
-        $strDomainDN = $strDNSDomain.toString().split('.'); foreach ($strVal in $strDomainDN) { $strTemp += "dc=$strVal," }; $strDomainDN = $strTemp.TrimEnd(",").toLower()
         BuildTreeView
     })
 
