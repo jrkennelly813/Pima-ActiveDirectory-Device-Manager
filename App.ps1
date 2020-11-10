@@ -25,23 +25,21 @@ Function SearchAD ($Asset) {
 Function DelComp($CompName) {
     Remove-ADComputer -Name $CompName 
 }
-Function AddNode ($selectedNode, $Name, $DN) { 
+Function AddNode ($selectedNode, $OU) { 
     $newNode = new-object System.Windows.Forms.TreeNode  
-    $newNode.Name = $name.name 
-    $newNode.Text = $name.name
-    $newNode.Tag = $DN.DistinguishedName.toString()
+    $newNode.Name = $OU.name 
+    $newNode.Text = $OU.name
+    $newNode.Tag = $OU.DistinguishedName.toString()
     $SelectedNode.Nodes.Add($newNode) | out-Null 
     return $newNode 
 } 
 Function GetNextLevel ($Node, $DN) {
 
-    $OUs = Get-ADOrganizationalUnit -Filter * -SearchScope OneLevel -SearchBase $DN
-    
-    If ($Null -ne $OUs) { 
-        ForEach ($_ in $OUs) {
-            AddNode -SelectedNode $Node -Name $_ -DN $_
+        $OUs = Get-ADOrganizationalUnit -Filter * -SearchScope OneLevel -SearchBase $DN
+        ForEach ($OU in $OUs) {
+            $NewNode = AddNode -SelectedNode $Node -OU $OU
+            GetNextLevel -Node $NewNode -DN $NewNode.Tag
         }
-    }  
 }
 Function BuildTreeView { 
  
@@ -51,22 +49,17 @@ Function BuildTreeView {
     $TreeNode.Tag = "root" 
     [void] $ADTree.Nodes.Add($TreeNode)
     
-    $root = "OU=PCC,DC=PCC-Domain,DC=pima,DC=edu"
-    $OUs = Get-ADOrganizationalUnit -Filter * -SearchScope OneLevel -SearchBase $root
+    $OUs = Get-ADOrganizationalUnit -Filter * -SearchScope OneLevel -SearchBase "OU=PCC,DC=PCC-Domain,DC=pima,DC=edu"
     
-    ForEach ($_ in $OUs) {
-        $NewNode = AddNode -SelectedNode $TreeNode -Name $_ -DN $_
+    ForEach ($OU in $OUs) {
+        $NewNode = AddNode -SelectedNode $TreeNode -OU $OU 
         GetNextLevel -Node $NewNode -DN $NewNode.Tag
     }
-
-    #ForEach ($_ in TreeNode.Nodes) {
-    #    $NewNode = AddNode -SelectedNode $TreeNode -Name $_ -DN $_
-    #}
     
-    
-    
+    $ADTree.add_AfterSelect( { 
+        $SelectBox.Text = $this.SelectedNode.Tag
+    })
         
-    $treeNodes.Expand() 
 }   
 #Function Prompt ($Asset) {
 #    $MsgBox = [System.Windows.Forms.MessageBox]::Show("Are you sure you would like to delete $Asset?",'Warning','YesNo')
