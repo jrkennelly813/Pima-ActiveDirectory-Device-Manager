@@ -88,14 +88,14 @@ Function BuildTreeView {
 #EndRegion
 #Region UI
 $Form = New-Object System.Windows.Forms.Form
-$Form.text = "Pima WC Computer Manager - Active Directory"
+$Form.text = "Pima Computer Manager - Active Directory"
 $Form.StartPosition = 'CenterScreen'
 $Form.ClientSize = '600,400'
 $Form.BackColor = "#393b3b"
 $Form.ForeColor = "#5486d1"
 
-$PimaIcon = New-Object System.Drawing.Icon ('.\favicon.ico')
-$Form.Icon = $PimaIcon
+#$PimaIcon = New-Object System.Drawing.Icon ('.\favicon.ico')
+#$Form.Icon = $PimaIcon
 
 $Label = New-Object System.Windows.Forms.Label
 $Label.Text = "Enter the Device Asset Tag Number"
