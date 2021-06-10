@@ -22,8 +22,21 @@ Function SearchAD ($Asset) {
         $MovButton.Visible, $DelButton.Visible = $False, $False
     }
 }
-Function DelComp($CompName) {
-    Remove-ADComputer -Name $CompName 
+Function MoveOU ($Asset, $NewOU) {
+    if ($Asset -Match "^\d{6}$") {
+        $Computer = Get-ADComputer -Filter ('Name -Like "*{0}*"' -f $Asset)
+        $DName = $Computer.DistinguishedName
+        Move-ADObject -Identity $DName -TargetPath $NewOU
+    }
+        
+}
+Function DelComp($Asset) {
+    if ($Asset -Match "^\d{6}$") {
+        $Computer = Get-ADComputer -Filter ('Name -Like "*{0}*"' -f $Asset)
+        $DName = $Computer.DistinguishedName 
+        Remove-ADObject -Identity $DName 
+        }
+
 }
 Function AddNode ($selectedNode, $OU) { 
     $newNode = new-object System.Windows.Forms.TreeNode  
@@ -184,14 +197,23 @@ $MovButton.Add_Click( {
         BuildTreeView
     })
 
+$OKButton.Add_Click( {
+        $StatusBar.Text = "Moving Computer.."
+        Start-Sleep -s 1
+        MoveOU  -Asset $TextBox.Text -NewOU $SelectBox.Text
+        $StatusBar.Text = "Done.."
+        Start-Sleep -s 1
+        $StatusBar.Text = ''
+})
+
 $DelButton.Add_Click( {
 
-        Prompt -Asset $Asset
-        #$StatusBar.Text = "Deleting Computer.."
-        #Start-Sleep -s 1
-        #$StatusBar.Text = "Done.."
-        #Start-Sleep -s 1
-        #$StatusBar.Text = ''
+        DelComp -Asset $TextBox.Text
+        $StatusBar.Text = "Deleting Computer.."
+        Start-Sleep -s 1
+        $StatusBar.Text = "Done.."
+        Start-Sleep -s 1
+        $StatusBar.Text = ''
     })
 
 $CloseButton.Add_Click( {
